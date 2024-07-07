@@ -2,4 +2,4 @@
 
 ## Reference
 
-[Link:https://jeiwan.net/posts/building-blockchain-in-go-part-1/]
+[Link](https://jeiwan.net/posts/building-blockchain-in-go-part-1/)
