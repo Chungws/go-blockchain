@@ -53,3 +53,15 @@ func (tx *Transaction) SetID() {
 	hash = sha256.Sum256(encoded.Bytes())
 	tx.ID = hash[:]
 }
+
+func (tx *Transaction) IsCoinbase() bool {
+	return len(tx.Vin) == 1 && len(tx.Vin[0].Txid) == 0 && tx.Vin[0].Vout == -1
+}
+
+func (in *TXInput) CanUnlockOutputWith(unlockingData string) bool {
+	return in.ScriptSig == unlockingData
+}
+
+func (out *TXOutput) CanBeUnlockedWith(unlockingData string) bool {
+	return out.ScriptPubKey == unlockingData
+}
