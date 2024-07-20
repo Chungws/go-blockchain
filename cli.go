@@ -23,6 +23,8 @@ func (cli *CLI) printUsage() {
 	fmt.Println("Usage:")
 	fmt.Println("  printchain - print all the blocks of the blockchain")
 	fmt.Println("  createblockchain -address ADDRESS - create a blockchain and send genesis block reward to ADDRESS")
+	fmt.Println("  createwallet - generates a new key-pair and saves it into the wallet file")
+	fmt.Println("  listaddresses - lists all addresses from the wallet file")
 	fmt.Println("  getbalance -address ADDRESS - get balance of ADDRESS")
 	fmt.Println("  send -from FROM -to TO -amount AMOUNT - send AMOUNT of coins from FROM address to TO")
 }
@@ -32,6 +34,8 @@ func (cli *CLI) Run() {
 
 	printChainCmd := flag.NewFlagSet("printchain", flag.ExitOnError)
 	createChainCmd := flag.NewFlagSet("createblockchain", flag.ExitOnError)
+	createWalletCmd := flag.NewFlagSet("createwallet", flag.ExitOnError)
+	listAddressesCmd := flag.NewFlagSet("listaddresses", flag.ExitOnError)
 	getBalanceCmd := flag.NewFlagSet("getbalance", flag.ExitOnError)
 	sendCmd := flag.NewFlagSet("send", flag.ExitOnError)
 
@@ -51,6 +55,16 @@ func (cli *CLI) Run() {
 		err := createChainCmd.Parse(os.Args[2:])
 		if err != nil {
 			log.Panic("createblockchain command parse failed!: ", err)
+		}
+	case "createwallet":
+		err := createChainCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic("createwallet command parse failed!: ", err)
+		}
+	case "listaddresses":
+		err := listAddressesCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic("listaddresses command parse failed!: ", err)
 		}
 	case "getbalance":
 		err := getBalanceCmd.Parse(os.Args[2:])
@@ -77,6 +91,14 @@ func (cli *CLI) Run() {
 			os.Exit(1)
 		}
 		cli.createBlockChain(*createChainAddress)
+	}
+
+	if createWalletCmd.Parsed() {
+		cli.createWallet()
+	}
+
+	if listAddressesCmd.Parsed() {
+		cli.listAddresses()
 	}
 
 	if getBalanceCmd.Parsed() {
@@ -126,7 +148,9 @@ func (cli *CLI) getBalance(address string) {
 	defer bc.db.Close()
 
 	balance := 0
-	UTXOs := bc.FindUTXO(address)
+	pubKeyHash := Base58Decode([]byte(address))
+	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-4]
+	UTXOs := bc.FindUTXO(pubKeyHash)
 
 	for _, out := range UTXOs {
 		balance += out.Value
@@ -142,4 +166,23 @@ func (cli *CLI) send(from, to string, amount int) {
 	tx := NewUTXOTransaction(from, to, amount, bc)
 	bc.MineBlock([]*Transaction{tx})
 	fmt.Println("Success!")
+}
+
+func (cli *CLI) createWallet() {
+	wallets, _ := NewWallets()
+	address := wallets.CreateWallet()
+	wallets.SaveToFile()
+
+	fmt.Printf("Your new address: %s\n", address)
+}
+
+func (cli *CLI) listAddresses() {
+	wallets, err := NewWallets()
+	if err != nil {
+		log.Panic(err)
+	}
+	addresses := wallets.GetAddresses()
+	for _, address := range addresses {
+		fmt.Println(address)
+	}
 }
