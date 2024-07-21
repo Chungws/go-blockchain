@@ -5,6 +5,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/json"
 	"log"
 
 	"golang.org/x/crypto/ripemd160"
@@ -31,6 +32,23 @@ func (w Wallet) GetAddress() []byte {
 	address := Base58Encode(fullPayload)
 
 	return address
+}
+
+func (w Wallet) MarshalJSON() ([]byte, error) {
+	mapStringAny := map[string]any{
+		"PrivateKey": map[string]any{
+			"D": w.PrivateKey.D,
+			"PublicKey": map[string]any{
+				"X": w.PrivateKey.X,
+				"Y": w.PrivateKey.Y,
+			},
+			"X": w.PrivateKey.X,
+			"Y": w.PrivateKey.Y,
+		},
+		"PublicKey": w.PublicKey,
+	}
+
+	return json.Marshal(mapStringAny)
 }
 
 func NewWallet() *Wallet {
