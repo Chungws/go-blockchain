@@ -7,6 +7,8 @@ import (
 	"github.com/boltdb/bolt"
 )
 
+const utxoBucket = "chainstate"
+
 type UTXOSet struct {
 	Blockchain *BlockChain
 }
@@ -17,7 +19,7 @@ func (u UTXOSet) Reindex() {
 
 	err := db.Update(func(tx *bolt.Tx) error {
 		err := tx.DeleteBucket(bucketName)
-		if err != nil {
+		if err != nil && err != bolt.ErrBucketNotFound {
 			return err
 		}
 
@@ -40,7 +42,9 @@ func (u UTXOSet) Reindex() {
 			}
 
 			err = b.Put(key, outs.Serialize())
-			return err
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	})

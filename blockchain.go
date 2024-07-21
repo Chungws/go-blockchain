@@ -41,27 +41,31 @@ func CreateBlockChain(address string) *BlockChain {
 		fmt.Println("Blockchain already exists.")
 		os.Exit(1)
 	}
+
 	var tip []byte
+
+	cbtx := NewCoinbaseTX(address, genesisCoinbaseData)
+	genesis := NewGenesisBlock(cbtx)
 
 	db, err := bolt.Open(dbFile, 0600, nil)
 	if err != nil {
 		log.Panic("Failed to open blockchain db: ", err)
 	}
-	err = db.Update(func(tx *bolt.Tx) error {
-		cbtx := NewCoinbaseTX(address, genesisCoinbaseData)
-		genesis := NewGenesisBlock(cbtx)
 
+	err = db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucket([]byte(blocksBucket))
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
+
 		err = b.Put(genesis.Hash, genesis.Serialize())
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
+
 		err = b.Put([]byte("l"), genesis.Hash)
 		if err != nil {
-			log.Panic(err)
+			return err
 		}
 		tip = genesis.Hash
 
@@ -75,7 +79,7 @@ func CreateBlockChain(address string) *BlockChain {
 	return &bc
 }
 
-func NewBlockChain(address string) *BlockChain {
+func NewBlockChain() *BlockChain {
 	if !dbExist() {
 		fmt.Println("No existing blockchain found. Create one first.")
 		os.Exit(1)

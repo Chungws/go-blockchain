@@ -8,8 +8,6 @@ import (
 	"strconv"
 )
 
-const utxoBucket = "chainstate"
-
 type CLI struct {
 	bc *BlockChain
 }
@@ -59,7 +57,7 @@ func (cli *CLI) Run() {
 			log.Panic("createblockchain command parse failed!: ", err)
 		}
 	case "createwallet":
-		err := createChainCmd.Parse(os.Args[2:])
+		err := createWalletCmd.Parse(os.Args[2:])
 		if err != nil {
 			log.Panic("createwallet command parse failed!: ", err)
 		}
@@ -122,15 +120,21 @@ func (cli *CLI) Run() {
 }
 
 func (cli *CLI) printChain() {
-	bci := cli.bc.Iterator()
+	bc := NewBlockChain()
+	defer bc.db.Close()
+
+	bci := bc.Iterator()
 
 	for {
 		b := bci.Next()
-		fmt.Printf("Prev. hash: %x\n", b.PrevBlockHash)
-		fmt.Printf("Hash: %x\n", b.Hash)
+		fmt.Printf("============== Block %x ==============\n", b.Hash)
+		fmt.Printf("Prev. block: %x\n", b.PrevBlockHash)
 		pow := NewProofOfWork(b)
-		fmt.Printf("PoW: %s\n", strconv.FormatBool(pow.Validate()))
-		fmt.Println()
+		fmt.Printf("PoW: %s\n\n", strconv.FormatBool(pow.Validate()))
+		for _, tx := range b.Transactions {
+			fmt.Println(tx)
+		}
+		fmt.Printf("\n\n")
 
 		if len(b.PrevBlockHash) == 0 {
 			break
@@ -149,7 +153,7 @@ func (cli *CLI) createBlockChain(address string) {
 }
 
 func (cli *CLI) getBalance(address string) {
-	bc := NewBlockChain(address)
+	bc := NewBlockChain()
 	UTXOSet := UTXOSet{bc}
 	defer bc.db.Close()
 
@@ -166,7 +170,7 @@ func (cli *CLI) getBalance(address string) {
 }
 
 func (cli *CLI) send(from, to string, amount int) {
-	bc := NewBlockChain(from)
+	bc := NewBlockChain()
 	UTXOSet := UTXOSet{bc}
 	defer bc.db.Close()
 
