@@ -16,9 +16,9 @@ type Block struct {
 	Nonce         int
 }
 
-func NewBlock(transatcions []*Transaction, prevBlockHash []byte) *Block {
+func NewBlock(transactions []*Transaction, prevBlockHash []byte) *Block {
 	block := &Block{
-		time.Now().Unix(), transatcions, prevBlockHash, []byte{}, 0,
+		time.Now().Unix(), transactions, prevBlockHash, []byte{}, 0,
 	}
 	pow := NewProofOfWork(block)
 	nonce, hash := pow.Run()
@@ -35,12 +35,11 @@ func NewGenesisBlock(coinbase *Transaction) *Block {
 
 func (b *Block) HashTransactions() []byte {
 	var txHashes [][]byte
-	var txHash [32]byte
 
 	for _, tx := range b.Transactions {
-		txHashes = append(txHashes, tx.ID)
+		txHashes = append(txHashes, tx.Serialize())
 	}
-	txHash = sha256.Sum256(bytes.Join(txHashes, []byte{}))
+	txHash := sha256.Sum256(bytes.Join(txHashes, []byte{}))
 
 	return txHash[:]
 }
@@ -51,7 +50,7 @@ func (b *Block) Serialize() []byte {
 
 	err := encoder.Encode(b)
 	if err != nil {
-		log.Fatalln(err)
+		log.Panic(err)
 	}
 
 	return result.Bytes()
@@ -63,7 +62,7 @@ func DeserializeBlock(d []byte) *Block {
 	decoder := gob.NewDecoder(bytes.NewReader(d))
 	err := decoder.Decode(&block)
 	if err != nil {
-		log.Fatalln(err)
+		log.Panic(err)
 	}
 
 	return &block

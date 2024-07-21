@@ -5,8 +5,10 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"log"
+	"math/big"
 
 	"golang.org/x/crypto/ripemd160"
 )
@@ -37,18 +39,59 @@ func (w Wallet) GetAddress() []byte {
 func (w Wallet) MarshalJSON() ([]byte, error) {
 	mapStringAny := map[string]any{
 		"PrivateKey": map[string]any{
-			"D": w.PrivateKey.D,
+			"D": w.PrivateKey.D.String(),
 			"PublicKey": map[string]any{
-				"X": w.PrivateKey.X,
-				"Y": w.PrivateKey.Y,
+				"X": w.PrivateKey.X.String(),
+				"Y": w.PrivateKey.Y.String(),
 			},
-			"X": w.PrivateKey.X,
-			"Y": w.PrivateKey.Y,
 		},
-		"PublicKey": w.PublicKey,
+		"PublicKey": hex.EncodeToString(w.PublicKey),
 	}
 
 	return json.Marshal(mapStringAny)
+}
+
+func (w *Wallet) UnmarshalJSON(data []byte) error {
+	var temp struct {
+		PrivateKey struct {
+			D         string `json:"D"`
+			PublicKey struct {
+				X string `json:"X"`
+				Y string `json:"Y"`
+			} `json:"PublicKey"`
+		} `json:"PrivateKey"`
+		PublicKey string `json:"PublicKey"`
+	}
+
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	d := new(big.Int)
+	d.SetString(temp.PrivateKey.D, 10)
+
+	x := new(big.Int)
+	x.SetString(temp.PrivateKey.PublicKey.X, 10)
+
+	y := new(big.Int)
+	y.SetString(temp.PrivateKey.PublicKey.Y, 10)
+
+	w.PrivateKey = ecdsa.PrivateKey{
+		D: d,
+		PublicKey: ecdsa.PublicKey{
+			Curve: elliptic.P256(),
+			X:     x,
+			Y:     y,
+		},
+	}
+
+	publicKey, err := hex.DecodeString(temp.PublicKey)
+	if err != nil {
+		return err
+	}
+	w.PublicKey = publicKey
+
+	return nil
 }
 
 func NewWallet() *Wallet {
