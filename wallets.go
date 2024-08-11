@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 )
@@ -29,7 +30,8 @@ func (ws *Wallets) GetAddresses() []string {
 	return addresses
 }
 
-func (ws *Wallets) LoadFromFile() error {
+func (ws *Wallets) LoadFromFile(nodeID string) error {
+	walletFile := fmt.Sprintf(walletFile, nodeID)
 	if _, err := os.Stat(walletFile); os.IsNotExist(err) {
 		return err
 	}
@@ -50,7 +52,8 @@ func (ws *Wallets) LoadFromFile() error {
 	return nil
 }
 
-func (ws *Wallets) SaveToFile() {
+func (ws *Wallets) SaveToFile(nodeID string) {
+	walletFile := fmt.Sprintf(walletFile, nodeID)
 	jsonData, err := json.Marshal(ws)
 	if err != nil {
 		log.Panic(err)
@@ -66,11 +69,11 @@ func (ws Wallets) GetWallet(address string) Wallet {
 	return *ws.Wallets[address]
 }
 
-func NewWallets() (*Wallets, error) {
+func NewWallets(nodeID string) (*Wallets, error) {
 	wallets := Wallets{}
 	wallets.Wallets = make(map[string]*Wallet)
 
-	err := wallets.LoadFromFile()
+	err := wallets.LoadFromFile(nodeID)
 
 	return &wallets, err
 }

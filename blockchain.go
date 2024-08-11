@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	dbFile              = "./database.db"
+	dbFile              = "./database_%s.db"
 	blocksBucket        = "blocks"
 	genesisCoinbaseData = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks"
 )
@@ -28,7 +28,7 @@ type BlockChainIterator struct {
 	db          *bolt.DB
 }
 
-func dbExist() bool {
+func dbExist(dbFile string) bool {
 	if _, err := os.Stat(dbFile); os.IsNotExist(err) {
 		return false
 	}
@@ -36,8 +36,9 @@ func dbExist() bool {
 	return true
 }
 
-func CreateBlockChain(address string) *BlockChain {
-	if dbExist() {
+func CreateBlockChain(address string, nodeID string) *BlockChain {
+	dbFile := fmt.Sprintf(dbFile, nodeID)
+	if dbExist(dbFile) {
 		fmt.Println("Blockchain already exists.")
 		os.Exit(1)
 	}
@@ -79,8 +80,9 @@ func CreateBlockChain(address string) *BlockChain {
 	return &bc
 }
 
-func NewBlockChain() *BlockChain {
-	if !dbExist() {
+func NewBlockChain(nodeID string) *BlockChain {
+	dbFile := fmt.Sprintf(dbFile, nodeID)
+	if !dbExist(dbFile) {
 		fmt.Println("No existing blockchain found. Create one first.")
 		os.Exit(1)
 	}
@@ -106,8 +108,100 @@ func NewBlockChain() *BlockChain {
 	return &bc
 }
 
+func (bc *BlockChain) AddBlock(block *Block) {
+	err := bc.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(blocksBucket))
+		blockInDb := b.Get(block.Hash)
+
+		if blockInDb != nil {
+			return nil
+		}
+
+		blockData := block.Serialize()
+		err := b.Put(block.Hash, blockData)
+		if err != nil {
+			return err
+		}
+
+		lastHash := b.Get([]byte("l"))
+		lastBlockData := b.Get(lastHash)
+		lastBlock := DeserializeBlock(lastBlockData)
+
+		if block.Height > lastBlock.Height {
+			err = b.Put([]byte("l"), block.Hash)
+			if err != nil {
+				return err
+			}
+			bc.tip = block.Hash
+		}
+
+		return nil
+	})
+	if err != nil {
+		log.Panic(err)
+	}
+}
+
+func (bc *BlockChain) GetBestHeight() int {
+	var lastBlock Block
+
+	err := bc.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(blocksBucket))
+		lastHash := b.Get([]byte("l"))
+		blockData := b.Get(lastHash)
+		lastBlock = *DeserializeBlock(blockData)
+
+		return nil
+	})
+	if err != nil {
+		log.Panic(err)
+	}
+
+	return lastBlock.Height
+}
+
+func (bc *BlockChain) GetBlock(blockHash []byte) (Block, error) {
+	var block Block
+
+	err := bc.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(blocksBucket))
+
+		blockData := b.Get(blockHash)
+
+		if blockData == nil {
+			return errors.New("Block is not found.")
+		}
+
+		block = *DeserializeBlock(blockData)
+
+		return nil
+	})
+	if err != nil {
+		return block, err
+	}
+
+	return block, nil
+}
+
+func (bc *BlockChain) GetBlockHashes() [][]byte {
+	var hashes [][]byte
+	bci := bc.Iterator()
+
+	for {
+		block := bci.Next()
+		hashes = append(hashes, block.Hash)
+
+		if len(block.PrevBlockHash) == 0 {
+			break
+		}
+	}
+
+	return hashes
+}
+
 func (bc *BlockChain) MineBlock(transactions []*Transaction) *Block {
 	var lastHash []byte
+	var lastHeight int
 
 	for _, tx := range transactions {
 		if !bc.VerifyTransaction(tx) {
@@ -119,13 +213,18 @@ func (bc *BlockChain) MineBlock(transactions []*Transaction) *Block {
 		b := tx.Bucket([]byte(blocksBucket))
 		lastHash = b.Get([]byte("l"))
 
+		blockData := b.Get(lastHash)
+		block := DeserializeBlock(blockData)
+
+		lastHeight = block.Height
+
 		return nil
 	})
 	if err != nil {
 		log.Fatalln("Failed to read lastHash in database: ", err)
 	}
 
-	newBlock := NewBlock(transactions, lastHash)
+	newBlock := NewBlock(transactions, lastHash, lastHeight+1)
 
 	err = bc.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(blocksBucket))
