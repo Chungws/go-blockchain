@@ -275,7 +275,7 @@ func handleInv(request []byte, bc *BlockChain) {
 
 		newInTransit := [][]byte{}
 		for _, b := range blocksInTransit {
-			if bytes.Equal(b, blockHash) {
+			if !bytes.Equal(b, blockHash) {
 				newInTransit = append(newInTransit, b)
 			}
 		}

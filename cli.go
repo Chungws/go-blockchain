@@ -27,7 +27,7 @@ func (cli *CLI) printUsage() {
 	fmt.Println("  listaddresses - lists all addresses from the wallet file")
 	fmt.Println("  getbalance -address ADDRESS - get balance of ADDRESS")
 	fmt.Println("  reindexutxo - Rebuilds the UTXO set")
-	fmt.Println("  send -from FROM -to TO -amount AMOUNT - send AMOUNT of coins from FROM address to TO")
+	fmt.Println("  send -from FROM -to TO -amount AMOUNT -mine - send AMOUNT of coins from FROM address to TO. Mine on the same node, when -mine is set.")
 	fmt.Println("  startnode -miner ADDRESS - Start a node with ID specified in NODE_ID envvar. -miner enables mining")
 }
 
@@ -158,6 +158,7 @@ func (cli *CLI) printChain(nodeID string) {
 	for {
 		b := bci.Next()
 		fmt.Printf("============== Block %x ==============\n", b.Hash)
+		fmt.Printf("Height: %d\n", b.Height)
 		fmt.Printf("Prev. block: %x\n", b.PrevBlockHash)
 		pow := NewProofOfWork(b)
 		fmt.Printf("PoW: %s\n\n", strconv.FormatBool(pow.Validate()))
