@@ -228,8 +228,8 @@ func (cli *CLI) send(from, to string, amount int, nodeID string, mineNow bool) {
 
 		newBlock := bc.MineBlock(txs)
 		UTXOSet.Update(newBlock)
-
 	} else {
+		fmt.Printf("send to central node : %s", knownNodes[0])
 		sendTx(knownNodes[0], tx)
 	}
 	fmt.Println("Success!")

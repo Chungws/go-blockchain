@@ -84,6 +84,15 @@ func StartServer(nodeID, minerAddress string) {
 	}
 }
 
+func sendAddr(address string) {
+	nodes := addr{knownNodes}
+	nodes.AddrList = append(nodes.AddrList, nodeAddress)
+	payload := gobEncode(nodes)
+	request := append(commandToBytes("addr"), payload...)
+
+	sendData(address, request)
+}
+
 func sendVersion(addr string, bc *BlockChain) {
 	bestHeight := bc.GetBestHeight()
 	payload := gobEncode(verzion{nodeVersion, bestHeight, nodeAddress})
@@ -161,7 +170,7 @@ func bytesToCommand(bytes []byte) string {
 		}
 	}
 
-	return fmt.Sprintf("%s", command)
+	return string(command)
 }
 
 func requestBlocks() {
@@ -212,7 +221,7 @@ func handleAddr(request []byte, bc *BlockChain) {
 	}
 
 	knownNodes = append(knownNodes, payload.AddrList...)
-	fmt.Printf("There are %d known nodes now!\n", len(knownNodes))
+	fmt.Printf("There are %d known nodes now!\n %+v", len(knownNodes), knownNodes)
 	requestBlocks()
 }
 
@@ -236,9 +245,11 @@ func handleVersion(request []byte, bc *BlockChain) {
 		sendVersion(payload.AddrFrom, bc)
 	}
 
+	// sendAddr(payload.AddrFrom)
 	if !nodeIsKnown(payload.AddrFrom) {
 		knownNodes = append(knownNodes, payload.AddrFrom)
 	}
+	fmt.Printf("Known Nodes : %+v\n", knownNodes)
 }
 
 func handleGetBlocks(request []byte, bc *BlockChain) {
